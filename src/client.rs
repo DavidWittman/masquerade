@@ -1060,11 +1060,28 @@ fn socks5_addr_to_string(addr: &socks5_proto::Address) -> String {
 fn socks5_addr_to_connect_udp_path(addr: &socks5_proto::Address) -> String {
     let (host, port) = match addr {
         socks5_proto::Address::SocketAddress(socket_addr) => {
-            let ip_string = socket_addr.ip().to_string();
-            ip_string.replace(":", "%3A"); // encode ':' in IPv6 address in URI
+            // encode ':' in IPv6 address in URI
+            let ip_string = socket_addr.ip().to_string().replace(":", "%3A"); 
             (ip_string, socket_addr.port())
         },
         socks5_proto::Address::DomainAddress(domain, port) => (domain.to_owned(), port.to_owned()),
     };
     format!("/.well_known/masque/udp/{}/{}/", host, port)
+}
+
+#[cfg(test)]
+mod tests {
+    use socks5_proto::Address;
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
+
+    use super::*;
+
+    #[test]
+    fn test_socks5_addr_to_connect_udp_path_ipv6() {
+        let ipv6_addr = SocketAddrV6::new(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1), 8080, 0, 0);
+        assert_eq!(socks5_addr_to_connect_udp_path(&Address::SocketAddress(SocketAddr::V6(ipv6_addr))), "/.well_known/masque/udp/2001%3Adb8%3A%3A1/8080/");
+
+        let ipv4_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+        assert_eq!(socks5_addr_to_connect_udp_path(&Address::SocketAddress(ipv4_addr)), "/.well_known/masque/udp/127.0.0.1/8080/");
+    }
 }
